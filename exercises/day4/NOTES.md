@@ -23,4 +23,4 @@ This reduces reasons-to-change per class.
 
 ## DIP (Dependency Inversion Principle)
 **Before:** `NotificationService` directly instantiated `EmailClient` (tight coupling).  
-**After:** depended on abstraction (`Notifier` Protocol) and injected dependency, enabling easy testing and swapping implementations.
+**After:** depended on abstraction (`Notifier` Protocol) and injected dependency, enabling easy testing and swapping implementations. 
