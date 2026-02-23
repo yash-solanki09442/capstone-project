@@ -1,4 +1,5 @@
 from rest_framework import generics
+
 from tasks.models import Task
 from tasks.serializers import TaskSerializer
 

@@ -1,4 +1,5 @@
 import os
+
 import psycopg2
 
 
@@ -16,14 +17,12 @@ def main() -> None:
             # This table name is the Django default: <appname>_<modelname>
             # If your app names are projects/tasks/comments, tables usually become:
             # projects_project, tasks_task, comments_comment
-            cur.execute(
-                """
+            cur.execute("""
                 SELECT id, title, slug, created_at
                 FROM projects_project
                 ORDER BY created_at DESC
                 LIMIT 10;
-                """
-            )
+                """)
             rows = cur.fetchall()
 
             print("\nLatest Projects:")
