@@ -1,5 +1,7 @@
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
 
+from api.permissions import IsOwnerOrReadOnly
 from projects.models import Project
 from projects.serializers import ProjectSerializer
 
@@ -7,3 +9,7 @@ from projects.serializers import ProjectSerializer
 class ProjectViewSet(viewsets.ModelViewSet):
     queryset = Project.objects.all()
     serializer_class = ProjectSerializer
+    permission_classes = [IsAuthenticated, IsOwnerOrReadOnly]
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
