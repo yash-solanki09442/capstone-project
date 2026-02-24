@@ -13,6 +13,7 @@ djangorestframework = "^3.16.1"
 psycopg = {extras = ["binary"], version = "^3.3.3"}
 python-dotenv = "^1.2.1"
 psycopg2-binary = "^2.9.11"
+djangorestframework-simplejwt = {extras = ["crypto"], version = "^5.5.1"}
 
 [build-system]
 requires = ["poetry-core>=1.8.0"]
