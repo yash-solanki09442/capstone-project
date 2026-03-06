@@ -1,3 +1,4 @@
+import structlog
 from django.db import transaction
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
@@ -7,6 +8,8 @@ from tasks.models import Task
 from tasks.serializers import TaskSerializer
 
 from .realtime import broadcast_event
+
+logger = structlog.get_logger(__name__)
 
 
 class TaskViewSet(viewsets.ModelViewSet):
@@ -28,5 +31,14 @@ class TaskViewSet(viewsets.ModelViewSet):
                 else None
             ),
         }
+
+        logger.info(
+            "task_updated",
+            task_id=instance.id,
+            project_id=instance.project_id,
+            user_id=(
+                self.request.user.id if self.request.user.is_authenticated else None
+            ),
+        )
 
         transaction.on_commit(lambda: broadcast_event(event))
