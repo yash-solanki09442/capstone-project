@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import importlib.util
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -22,9 +23,15 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "dev-secret")
 
 DEBUG = os.getenv("DEBUG", "1") == "1"
 
-REALTIME_SERVICE_URL = os.getenv("REALTIME_SERVICE_URL", "http://127.0.0.1:8080")
+# REALTIME_SERVICE_URL = os.getenv("REALTIME_SERVICE_URL", "http://127.0.0.1:8080")
+REALTIME_SERVICE_URL = os.getenv(
+    "REALTIME_SERVICE_URL",
+    "http://notifications:8080/broadcast",
+)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS", "127.0.0.1,localhost,host.docker.internal"
+).split(",")
 
 
 # Application definition
@@ -44,12 +51,10 @@ INSTALLED_APPS = [
     "tasks",
     "comments",
     "drf_spectacular",
-    "debug_toolbar",
     "health_check",
 ]
 
 MIDDLEWARE = [
-    "debug_toolbar.middleware.DebugToolbarMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -58,6 +63,14 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if DEBUG and importlib.util.find_spec("debug_toolbar"):
+    try:
+        INSTALLED_APPS += ["debug_toolbar"]
+        MIDDLEWARE = ["debug_toolbar.middleware.DebugToolbarMiddleware", *MIDDLEWARE]
+    except ImportError:
+        pass
+
 
 ROOT_URLCONF = "tutorial.urls"
 
@@ -88,7 +101,7 @@ DATABASES = {
         "NAME": os.getenv("DB_NAME", "capstone"),
         "USER": os.getenv("DB_USER", "capstone"),
         "PASSWORD": os.getenv("DB_PASSWORD", "capstone"),
-        "HOST": os.getenv("DB_HOST", "localhost"),
+        "HOST": os.getenv("DB_HOST", "db"),
         "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
@@ -197,4 +210,8 @@ structlog.configure(
     logger_factory=structlog.stdlib.LoggerFactory(),
     wrapper_class=structlog.stdlib.BoundLogger,
     cache_logger_on_first_use=True,
+)
+
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )

@@ -2,7 +2,7 @@ services:
   db:
     image: postgres:16
     container_name: capstone_db
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_DB: capstone
       POSTGRES_USER: capstone
@@ -11,6 +11,54 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - capstone_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U capstone -d capstone"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: capstone_api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DEBUG: "0"
+      SECRET_KEY: django-insecure-change-me
+      DB_NAME: capstone
+      DB_USER: capstone
+      DB_PASSWORD: capstone
+      DB_HOST: db
+      DB_PORT: "5432"
+      REALTIME_SERVICE_URL: http://notifications:8080/broadcast
+    ports:
+      - "8000:8000"
+    networks:
+      - capstone_network
+    command: >
+      sh -c "python manage.py migrate &&
+             gunicorn tutorial.wsgi:application --bind 0.0.0.0:8000"
+
+  notifications:
+    build:
+      context: ./realtime-service
+      dockerfile: Dockerfile
+    container_name: capstone_notifications
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - capstone_network
 
 volumes:
   postgres_data:
+
+networks:
+  capstone_network:
+    driver: bridge
