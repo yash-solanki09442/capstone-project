@@ -1,0 +1,128 @@
+name: CI/CD
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "20"
+
+jobs:
+  python-ci:
+    name: Python CI
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: capstone
+          POSTGRES_USER: capstone
+          POSTGRES_PASSWORD: capstone
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U capstone -d capstone"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    env:
+      DJANGO_SECRET_KEY: test-secret-key
+      DEBUG: "0"
+      DB_NAME: capstone
+      DB_USER: capstone
+      DB_PASSWORD: capstone
+      DB_HOST: 127.0.0.1
+      DB_PORT: "5432"
+      EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+      REALTIME_SERVICE_URL: http://127.0.0.1:8080/broadcast
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        run: pip install poetry
+
+      - name: Install Python dependencies
+        run: poetry install --with dev --no-interaction
+
+      - name: Run Black
+        run: poetry run black --check .
+
+      - name: Run isort
+        run: poetry run isort --check-only .
+
+      - name: Run flake8
+        run: poetry run flake8 .
+
+      - name: Run pytest
+        run: poetry run pytest
+
+  node-ci:
+    name: Node CI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: realtime-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: realtime-service/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest
+        run: npm test -- --runInBand
+
+  docker-publish:
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [python-ci, node-ci]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image owner
+        id: vars
+        run: echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Build and push API image
+        run: |
+          docker build -t ghcr.io/${{ steps.vars.outputs.owner_lc }}/capstone-api:latest .
+          docker push ghcr.io/${{ steps.vars.outputs.owner_lc }}/capstone-api:latest
+
+      - name: Build and push notifications image
+        run: |
+          docker build -t ghcr.io/${{ steps.vars.outputs.owner_lc }}/capstone-notifications:latest ./realtime-service
+          docker push ghcr.io/${{ steps.vars.outputs.owner_lc }}/capstone-notifications:latest

@@ -15,6 +15,8 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+import importlib.util
+
 from django.conf import settings
 from django.contrib import admin
 from django.urls import include, path
@@ -26,7 +28,11 @@ urlpatterns = [
     path("ht/", HealthCheckView.as_view(), name="health_check"),
 ]
 
-if settings.DEBUG:
-    urlpatterns += [
-        path("__debug__/", include("debug_toolbar.urls")),
-    ]
+
+if settings.DEBUG and importlib.util.find_spec("debug_toolbar"):
+    try:
+        urlpatterns += [
+            path("__debug__/", include("debug_toolbar.urls")),
+        ]
+    except ImportError:
+        pass
